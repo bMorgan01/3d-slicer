@@ -130,3 +130,6 @@ dmypy.json
 
 # Bundle Script
 *.bat
+
+# Pycharm
+.idea/
