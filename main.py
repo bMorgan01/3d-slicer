@@ -1,6 +1,6 @@
 import os
 import sys
-from copy import copy
+from copy import copy, deepcopy
 from math import sqrt, ceil, floor
 import numpy as np
 import tkinter as tk
@@ -28,6 +28,14 @@ bins = None
 blocked = False
 saveBinsButton = None
 showKeyButton = None
+exportHeightEntry = None
+exportWidthEntry = None
+exportKerfEntry = None
+lastW = None
+lastH = None
+lastK = None
+resultWinHeight = None
+resultWinWidth = None
 
 
 # shows dimensions and layer count in main gui window
@@ -107,7 +115,7 @@ def focus_results():
 
 # run slices, show export window
 def go():
-    global combined, sections, results, saveBinsButton, showKeyButton, showKey
+    global combined, sections, results, saveBinsButton, showKeyButton, showKey, exportHeightEntry, exportWidthEntry, exportKerfEntry, resultWinWidth, resultWinHeight
 
     focus_results()
 
@@ -134,6 +142,7 @@ def go():
     results = tk.Toplevel(root)
     results.title("Results")
     results.protocol("WM_DELETE_WINDOW", clearResults)
+    results.resizable(0, 0)
 
     buttonFrame = tk.Frame(results)
     viewFrame = tk.Frame(buttonFrame)
@@ -182,6 +191,9 @@ def go():
 
     results.update()
     results.geometry(f'+{root.winfo_rootx()+int((root.winfo_width()-results.winfo_width())/2)}+{root.winfo_rooty()+int((root.winfo_height()-results.winfo_height())/2)}')
+
+    resultWinWidth = results.winfo_width()
+    resultWinHeight = results.winfo_height()
     results.mainloop()
 
 
@@ -241,14 +253,30 @@ def export():
         blocked = False
 
 
+def checkPrepared(args=None):
+    if float(exportWidthEntry.get()) != lastW or float(exportHeightEntry.get()) != lastH or float(exportKerfEntry.get()) != lastK:
+        saveBinsButton.pack_forget()
+        showKeyButton.pack_forget()
+
+        results.geometry(f"{resultWinHeight}x{resultWinHeight}")
+    else:
+        if not saveBinsButton.winfo_ismapped():
+            results.geometry("")
+            saveBinsButton.pack(side=LEFT, padx=1)
+            showKeyButton.pack(side=LEFT)
+
 # prepares bins for export, performs bin packing
 # arguments: bin height, bin width, kerf
 def exportFile(h, w, k):
-    global blocked, bins, pdfSections
+    global blocked, bins, pdfSections, exportWidthEntry, exportHeightEntry, exportKerfEntry, lastW, lastH, lastK
 
     # if other window is not open
     if not blocked:
         blocked = True
+
+        lastW = w
+        lastH = h
+        lastK = k
 
         # prepare packers, one with rotation enabled, one disabled, results will be compared later
         packer = newPacker(mode=PackingMode.Offline, bin_algo=PackingBin.Global, sort_algo=SORT_NONE, rotation=False)
@@ -258,9 +286,10 @@ def exportFile(h, w, k):
         for i in range(len(sections)):
             dimensions = sections[i].bounds
 
-            sections[i].apply_translation((-dimensions[0][0], -dimensions[0][1]))
+            sect = deepcopy(sections[i])
+            sect.apply_translation((-dimensions[0][0], -dimensions[0][1]))
 
-            dimensions = sections[i].bounds
+            dimensions = sect.bounds
 
             # set dimensions to bounds plus kerf
             r = (float2dec((dimensions[1][0]) + k, 5), float2dec((dimensions[1][1]) + k, 5))
@@ -277,6 +306,7 @@ def exportFile(h, w, k):
 
         # init var to largest bin area of packers, will be overridden to find minimum area used, minimizing material wastage
         leastBinSum = w * h * max(len(packer), len(rotPacker))
+        leastPacker = packer
         # loop through packers
         for pack in (packer, rotPacker):
             binSum = 0
@@ -329,7 +359,7 @@ def exportFile(h, w, k):
 
         # add rectangles to their designated bins
         for rect in packer.rect_list():
-            section = sections[rect[5]]
+            section = deepcopy(sections[rect[5]])
             bin = rect[0]
 
             # find position of bin for display purposes (bins displayed in grid, find row & col)
@@ -371,6 +401,10 @@ def exportFile(h, w, k):
         # now that export has been prepared, show save buttons
         saveBinsButton.pack(side=LEFT, padx=1)
         showKeyButton.pack(side=LEFT)
+
+        exportWidthEntry.bind('<KeyRelease>', checkPrepared)
+        exportHeightEntry.bind('<KeyRelease>', checkPrepared)
+        exportKerfEntry.bind('<KeyRelease>', checkPrepared)
 
         blocked = False
 
@@ -434,6 +468,7 @@ root.attributes("-toolwindow", 1)
 p1 = tk.PhotoImage(file=resource_path('icon.png'))
 # Icon set for program window
 root.iconphoto(True, p1)
+root.resizable(0, 0)
 
 # clear children of base window
 clearList = root.winfo_children()
