@@ -110,6 +110,8 @@ def focus_results():
     # bring results window forward
     if results is not None and 'normal' == results.state():
         results.focus_set()
+        results.geometry("")
+
         return
 
 
@@ -254,16 +256,22 @@ def export():
 
 
 def checkPrepared(args=None):
-    if float(exportWidthEntry.get()) != lastW or float(exportHeightEntry.get()) != lastH or float(exportKerfEntry.get()) != lastK:
-        saveBinsButton.pack_forget()
-        showKeyButton.pack_forget()
+    shouldRemove = False
+    try:
+        shouldRemove = float(exportWidthEntry.get()) != lastW or float(exportHeightEntry.get()) != lastH or float(exportKerfEntry.get()) != lastK
+    except ValueError:
+        shouldRemove = True
+    finally:
+        if shouldRemove:
+            saveBinsButton.pack_forget()
+            showKeyButton.pack_forget()
 
-        results.geometry(f"{resultWinHeight}x{resultWinHeight}")
-    else:
-        if not saveBinsButton.winfo_ismapped():
-            results.geometry("")
-            saveBinsButton.pack(side=LEFT, padx=1)
-            showKeyButton.pack(side=LEFT)
+            results.geometry(f"{resultWinHeight}x{resultWinHeight}")
+        else:
+            if not saveBinsButton.winfo_ismapped():
+                results.geometry("")
+                saveBinsButton.pack(side=LEFT, padx=1)
+                showKeyButton.pack(side=LEFT)
 
 # prepares bins for export, performs bin packing
 # arguments: bin height, bin width, kerf
@@ -405,6 +413,8 @@ def exportFile(h, w, k):
         exportWidthEntry.bind('<KeyRelease>', checkPrepared)
         exportHeightEntry.bind('<KeyRelease>', checkPrepared)
         exportKerfEntry.bind('<KeyRelease>', checkPrepared)
+
+        focus_results()
 
         blocked = False
 
